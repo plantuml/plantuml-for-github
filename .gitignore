@@ -1,0 +1,13 @@
+# Vendored PlantUML JS engine — fetched at build/install time.
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# Node (in case you add tooling later)
+node_modules/
+npm-debug.log*

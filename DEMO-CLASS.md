@@ -1,0 +1,29 @@
+# PlantUML for GitHub
+
+
+
+## Class Diagram
+
+
+```plantuml
+@startuml
+class Aaa {
+    -bbb : int
+    +ccc : string
+    #aa : float
+    +void addEntry(mmm : Entry)
+    +int setFactory(ddd : string)
+}
+class Factory {
+    #fff : string
+}
+class Entry {
+    -yyy : int
+}
+class Parent {
+}
+Aaa *--> "1..100" Entry : -entries
+Aaa o--> Factory : #factory
+Aaa o--> Parent : +parent
+@enduml
+```
