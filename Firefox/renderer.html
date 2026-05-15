@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PlantUML Renderer</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 8px;
+      background: #ffffff;
+      color: #1f2328;
+      font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    html.puml-dark, html.puml-dark body {
+      background: #0d1117;
+      color: #f0f6fc;
+    }
+    #plantuml-output svg {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+    #plantuml-output {
+      min-height: 40px;
+    }
+    .puml-error {
+      color: #cf222e;
+      background: #ffebe9;
+      border: 1px solid #ffcecb;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
+    .puml-loading {
+      color: #656d76;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div id="plantuml-output">
+    <div class="puml-loading">Loading PlantUML engine…</div>
+  </div>
+  <!-- viz-global.js must be loaded as a classic script (it sets globals). -->
+  <script src="vendor/viz-global.js"></script>
+  <!--
+    The PlantUML engine (originally a single 25 MB ES module) is split
+    into 7 chunks to stay under Mozilla AMO's 5 MB per-file linter limit.
+    The chunks are loaded as classic scripts in order; top-level `let`
+    and `const` have been rewritten to `var` by split_plantuml.py so all
+    declarations share the same scope across chunks. The final chunk
+    publishes the public API as `window.__plantuml`.
+  -->
+  <script src="vendor/plantuml.0.js"></script>
+  <script src="vendor/plantuml.1.js"></script>
+  <script src="vendor/plantuml.2.js"></script>
+  <script src="vendor/plantuml.3.js"></script>
+  <script src="vendor/plantuml.4.js"></script>
+  <script src="vendor/plantuml.5.js"></script>
+  <script src="vendor/plantuml.6.js"></script>
+  <!-- renderer.js is loaded as a classic script and reads window.__plantuml. -->
+  <script src="renderer.js"></script>
+</body>
+</html>
