@@ -4,23 +4,9 @@ A Chrome extension that renders ` ```plantuml ` code blocks directly on GitHub p
 
 **No server. No tokens. No tracking. Zero permissions.**
 
-## Installation (developer mode)
+## Installation
 
-### Step 1 — Load the extension in Chrome
-
-1. Open `chrome://extensions/`
-2. Toggle **Developer mode** on (top-right)
-3. Click **Load unpacked**
-4. Select the `plantuml-for-github/` folder
-
-### Step 2 — Test it
-
-Visit any GitHub page containing a ` ```plantuml ` block, for example:
-
-- A README that uses PlantUML
-- An issue or PR comment with a `plantuml` fenced block
-
-You should see the diagram rendered inline, with a small "🌱 PlantUML (client-side render)" badge above it. Click the toggle button (the `<>` icon to the left of the badge) to switch to the original source view; click it again (it now shows an eye icon) to switch back to the diagram.
+- From the [Chrome Web Store](https://chromewebstore.google.com/detail/plantuml-for-github/lbokhidfopkdehkmlmpaabacljoediic)
 
 
 ## Live demo
@@ -109,6 +95,26 @@ The main blocker was performance and infrastructure cost. With the TeaVM-compile
 
 If you'd like to see this integrated natively, please **upvote the discussion**:
 <https://github.com/orgs/community/discussions/10111>
+
+## Installation for Chrome (developer mode)
+
+### Step 1 — Load the extension in Chrome
+
+1. Open `chrome://extensions/`
+2. Toggle **Developer mode** on (top-right)
+3. Click **Load unpacked**
+4. Select the `plantuml-for-github/` folder
+
+### Step 2 — Test it
+
+Visit any GitHub page containing a ` ```plantuml ` block, for example:
+
+- A README that uses PlantUML
+- An issue or PR comment with a `plantuml` fenced block
+
+You should see the diagram rendered inline, with a small "🌱 PlantUML (client-side render)" badge above it. Click the toggle button (the `<>` icon to the left of the badge) to switch to the original source view; click it again (it now shows an eye icon) to switch back to the diagram.
+
+
 
 ## License
 
