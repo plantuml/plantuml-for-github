@@ -181,9 +181,42 @@
       '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">' +
       '<path d="M8 2c1.981 0 3.671.992 4.933 2.078 1.27 1.091 2.187 2.345 2.637 3.023a1.62 1.62 0 0 1 0 1.798c-.45.678-1.367 1.932-2.637 3.023C11.67 13.008 9.981 14 8 14c-1.981 0-3.671-.992-4.933-2.078C1.797 10.83.88 9.576.43 8.898a1.62 1.62 0 0 1 0-1.798c.45-.677 1.367-1.931 2.637-3.022C4.33 2.992 6.019 2 8 2ZM1.679 7.932a.12.12 0 0 0 0 .136c.411.622 1.241 1.75 2.366 2.717C5.176 11.758 6.527 12.5 8 12.5c1.473 0 2.825-.742 3.955-1.715 1.124-.967 1.954-2.096 2.366-2.717a.12.12 0 0 0 0-.136c-.412-.621-1.242-1.75-2.366-2.717C10.824 4.242 9.473 3.5 8 3.5c-1.473 0-2.825.742-3.955 1.715-1.124.967-1.954 2.096-2.366 2.717ZM8 10a2 2 0 1 1-.001-3.999A2 2 0 0 1 8 10Z"/>' +
       '</svg>';
+    // Picture / image icon — used by the "copy as bitmap" button.
+    // 24x24 viewBox matching the source patch's icon style, rendered
+    // at 14x14 to fit the existing 22x22 header-button slot.
+    const ICON_IMAGE =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<rect x="3" y="3" width="18" height="18" rx="2"/>' +
+      '<circle cx="8.5" cy="8.5" r="1.5"/>' +
+      '<polyline points="21,15 16,10 5,21"/>' +
+      '</svg>';
     toggleBtn.innerHTML = ICON_CODE;
-    // Toggle on the LEFT, badge on the RIGHT of it.
+
+    // Second header button: copy the rendered diagram to the clipboard
+    // as a PNG bitmap. The actual SVG-to-PNG conversion happens inside
+    // the iframe (it owns the SVG); we just kick it off and write the
+    // resulting blob to the clipboard from this content-script context.
+    const bitmapBtn = document.createElement('button');
+    bitmapBtn.type = 'button';
+    bitmapBtn.className = 'plantuml-for-github-copy-bitmap';
+    bitmapBtn.setAttribute('aria-label', 'Copy diagram as bitmap');
+    bitmapBtn.title = 'Copy diagram as bitmap';
+    bitmapBtn.style.cssText =
+      'display: inline-flex; align-items: center; justify-content: center; ' +
+      'width: 22px; height: 22px; padding: 0; margin: 0 4px 0 0; ' +
+      'background: transparent; border: 1px solid transparent; ' +
+      'border-radius: 4px; cursor: pointer; ' +
+      'color: ' + t.wrapperFg + ';';
+    bitmapBtn.addEventListener('mouseenter', () => {
+      bitmapBtn.style.background = t.borderCol;
+    });
+    bitmapBtn.addEventListener('mouseleave', () => {
+      bitmapBtn.style.background = 'transparent';
+    });
+    bitmapBtn.innerHTML = ICON_IMAGE;
+    // Toggle on the LEFT, then bitmap-copy, then badge on the RIGHT.
     header.appendChild(toggleBtn);
+    header.appendChild(bitmapBtn);
     header.appendChild(badge);
     // With both children left-aligned, switch the header from
     // space-between to flex-start so they sit next to each other.
@@ -203,7 +236,7 @@
     iframe.setAttribute('title', 'PlantUML diagram');
 
     wrapper.appendChild(iframe);
-    return { wrapper, iframe, toggleBtn, icons: { code: ICON_CODE, eye: ICON_EYE } };
+    return { wrapper, iframe, toggleBtn, bitmapBtn, icons: { code: ICON_CODE, eye: ICON_EYE, image: ICON_IMAGE } };
   }
 
   // ------------------------------------------------------------------
@@ -211,6 +244,17 @@
   // source to the renderer once the iframe is loaded.
   // ------------------------------------------------------------------
   let blockCounter = 0;
+
+  // ------------------------------------------------------------------
+  // Pending bitmap-copy requests, keyed by requestId. The clipboard API
+  // requires write() to be called synchronously in a user-gesture handler
+  // to preserve transient activation, but the PNG blob comes back later
+  // from the iframe. We bridge that gap by passing a Promise<Blob> to
+  // ClipboardItem (Chrome supports that) and resolving the Promise here
+  // when the iframe responds.
+  // ------------------------------------------------------------------
+  const pendingBitmapRequests = new Map();
+  let bitmapCounter = 0;
 
   function processBlock(blockEl) {
     blockEl.classList.add(PROCESSED_CLASS);
@@ -227,7 +271,7 @@
 
     const requestId = `puml-${++blockCounter}-${Date.now()}`;
     const dark = isDarkMode();
-    const { wrapper, iframe, toggleBtn, icons } = buildIframe(requestId, dark);
+    const { wrapper, iframe, toggleBtn, bitmapBtn, icons } = buildIframe(requestId, dark);
 
     // Insert the wrapper *before* the original block, then move the
     // original block INSIDE the wrapper (after the iframe). This keeps
@@ -262,6 +306,87 @@
         toggleBtn.title = 'Show source';
       }
       TRACE('toggle clicked, showingSource=' + showingSource);
+    });
+
+    // ------------------------------------------------------------------
+    // Bitmap-copy button: ask the iframe to render the SVG to a PNG
+    // blob, then copy it to the clipboard from this content-script
+    // context (the iframe is sandboxed and cannot reach the clipboard
+    // itself).
+    // ------------------------------------------------------------------
+    bitmapBtn.addEventListener('click', async () => {
+      // Don't bother if there's nothing to copy yet (still loading or
+      // currently showing source -- the iframe's #plantuml-output may
+      // still hold the SVG, so we let the request go through; the
+      // iframe will reject with "No SVG to copy" if it's truly empty).
+      const bitmapReqId = `bitmap-${++bitmapCounter}-${Date.now()}`;
+      TRACE('bitmap clicked, requestId=' + bitmapReqId);
+
+      // Create the promise that will be resolved when the iframe sends
+      // back the PNG blob (or rejected on error/timeout).
+      let resolveBlob;
+      let rejectBlob;
+      const blobPromise = new Promise((resolve, reject) => {
+        resolveBlob = resolve;
+        rejectBlob = reject;
+      });
+      const timeoutId = setTimeout(() => {
+        if (pendingBitmapRequests.has(bitmapReqId)) {
+          pendingBitmapRequests.delete(bitmapReqId);
+          rejectBlob(new Error('Bitmap copy timed out after 10s'));
+        }
+      }, 10000);
+      pendingBitmapRequests.set(bitmapReqId, {
+        resolve: (blob) => { clearTimeout(timeoutId); resolveBlob(blob); },
+        reject:  (err)  => { clearTimeout(timeoutId); rejectBlob(err); }
+      });
+
+      // Pick the target origin the same way we do for PLANTUML_RENDER.
+      let targetOrigin = RENDERER_ORIGIN;
+      try {
+        const sb = iframe.getAttribute('sandbox') || '';
+        const opaque = sb.includes('allow-scripts') && !sb.includes('allow-same-origin');
+        if (opaque) targetOrigin = '*';
+      } catch (e) { /* ignore */ }
+
+      // Kick off the SVG -> PNG conversion inside the iframe.
+      iframe.contentWindow.postMessage({
+        type: 'PLANTUML_COPY_BITMAP',
+        requestId: bitmapReqId
+      }, targetOrigin);
+      TRACE('PLANTUML_COPY_BITMAP posted to iframe, requestId=' + bitmapReqId);
+
+      // Write to clipboard synchronously here. Passing a Promise<Blob>
+      // to ClipboardItem (Chrome-supported) preserves the transient
+      // user activation from the click; the actual blob can arrive
+      // asynchronously without losing the gesture.
+      try {
+        const item = new ClipboardItem({ 'image/png': blobPromise });
+        await navigator.clipboard.write([item]);
+        TRACE('clipboard write succeeded for requestId=' + bitmapReqId);
+        // Brief green flash on success.
+        const prevBg = bitmapBtn.style.background;
+        bitmapBtn.style.background = '#2da44e';
+        bitmapBtn.style.color = '#ffffff';
+        setTimeout(() => {
+          bitmapBtn.style.background = prevBg;
+          bitmapBtn.style.color = t.wrapperFg;
+        }, 600);
+      } catch (err) {
+        TRACE('clipboard write failed for requestId=' + bitmapReqId + ':', err);
+        pendingBitmapRequests.delete(bitmapReqId);
+        // Brief red flash + tooltip-only feedback on failure.
+        const prevBg = bitmapBtn.style.background;
+        const prevTitle = bitmapBtn.title;
+        bitmapBtn.style.background = '#cf222e';
+        bitmapBtn.style.color = '#ffffff';
+        bitmapBtn.title = 'Copy failed: ' + (err && err.message ? err.message : err);
+        setTimeout(() => {
+          bitmapBtn.style.background = prevBg;
+          bitmapBtn.style.color = t.wrapperFg;
+          bitmapBtn.title = prevTitle;
+        }, 2000);
+      }
     });
 
     iframe.addEventListener('load', () => {
@@ -301,16 +426,38 @@
     const data = event.data;
     // Trace every message of interest (filter out noise)
     if (data && typeof data === 'object' &&
-        (data.type === 'PLANTUML_RESULT' || data.type === 'PLANTUML_ERROR')) {
+        (data.type === 'PLANTUML_RESULT' || data.type === 'PLANTUML_ERROR' ||
+         data.type === 'PLANTUML_BITMAP_RESULT' || data.type === 'PLANTUML_BITMAP_ERROR')) {
       TRACE('message received from origin=' + event.origin + ' type=' + data.type +
             ' requestId=' + data.requestId +
-            (data.type === 'PLANTUML_ERROR' ? ' error=' + data.error : ' height=' + data.height));
+            (data.type === 'PLANTUML_ERROR' ? ' error=' + data.error : '') +
+            (data.type === 'PLANTUML_BITMAP_ERROR' ? ' error=' + data.error : '') +
+            (data.type === 'PLANTUML_RESULT' ? ' height=' + data.height : '') +
+            (data.type === 'PLANTUML_BITMAP_RESULT' ? ' blob.size=' + (data.blob && data.blob.size) : ''));
     }
 
     // Only accept messages from our own renderer origin.
     if (event.origin !== RENDERER_ORIGIN && event.origin !== 'null') return;
 
     if (!data || typeof data !== 'object') return;
+
+    // Handle bitmap-copy responses: forward the blob (or error) to the
+    // matching pending request created by the bitmap-button click.
+    if (data.type === 'PLANTUML_BITMAP_RESULT' || data.type === 'PLANTUML_BITMAP_ERROR') {
+      const pending = pendingBitmapRequests.get(data.requestId);
+      if (!pending) {
+        TRACE('no pending bitmap request for requestId=' + data.requestId);
+        return;
+      }
+      pendingBitmapRequests.delete(data.requestId);
+      if (data.type === 'PLANTUML_BITMAP_RESULT' && data.blob instanceof Blob) {
+        pending.resolve(data.blob);
+      } else {
+        pending.reject(new Error(data.error || 'Unknown bitmap copy error'));
+      }
+      return;
+    }
+
     if (data.type !== 'PLANTUML_RESULT' && data.type !== 'PLANTUML_ERROR') return;
 
     const iframe = document.querySelector(

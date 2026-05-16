@@ -38,6 +38,33 @@ window.addEventListener('message', (event) => {
   if (!data || typeof data !== 'object') {
     return;
   }
+  if (data.type === 'PLANTUML_COPY_BITMAP') {
+    TRACE('PLANTUML_COPY_BITMAP received from origin=' + event.origin +
+          ' requestId=' + data.requestId);
+    if (typeof data.requestId !== 'string') {
+      TRACE('invalid bitmap-copy message shape, ignoring');
+      return;
+    }
+    svgToPngBlob()
+      .then((blob) => {
+        TRACE('svgToPngBlob resolved, blob.size=' + blob.size);
+        event.source.postMessage({
+          type: 'PLANTUML_BITMAP_RESULT',
+          requestId: data.requestId,
+          blob
+        }, event.origin);
+      })
+      .catch((err) => {
+        TRACE('svgToPngBlob rejected:', err);
+        event.source.postMessage({
+          type: 'PLANTUML_BITMAP_ERROR',
+          requestId: data.requestId,
+          error: String(err && err.message ? err.message : err)
+        }, event.origin);
+      });
+    return;
+  }
+
   if (data.type !== 'PLANTUML_RENDER') {
     return;
   }
@@ -215,4 +242,74 @@ function showError(message) {
   div.className = 'puml-error';
   div.textContent = 'PlantUML error: ' + message;
   output.appendChild(div);
+}
+
+// ------------------------------------------------------------------
+// Convert the SVG currently in #plantuml-output to a PNG Blob.
+// Returns a promise resolving with the PNG blob. The iframe is
+// sandboxed without allow-same-origin, so we can't call
+// navigator.clipboard.write() from here -- we just hand the blob
+// back to the parent (content script) via postMessage and let it
+// do the clipboard write from a real github.com origin.
+// ------------------------------------------------------------------
+async function svgToPngBlob() {
+  const svg = output.querySelector('svg');
+  if (svg == null) {
+    throw new Error('No SVG to copy');
+  }
+
+  // Serialize SVG with proper xmlns (required for standalone rendering).
+  const clone = svg.cloneNode(true);
+  if (clone.getAttribute('xmlns') == null) {
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  }
+  const svgString = new XMLSerializer().serializeToString(clone);
+  const svgBlob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
+  const url = URL.createObjectURL(svgBlob);
+
+  try {
+    // Determine target dimensions (account for devicePixelRatio for crisp output).
+    const rect = svg.getBoundingClientRect();
+    let width = rect.width;
+    let height = rect.height;
+    if (!width || !height) {
+      const vb = svg.viewBox && svg.viewBox.baseVal;
+      if (vb) {
+        width = width || vb.width;
+        height = height || vb.height;
+      }
+    }
+    if (!width || !height) {
+      throw new Error('Cannot determine SVG dimensions');
+    }
+    const ratio = window.devicePixelRatio || 1;
+
+    // Load SVG into an Image.
+    const img = new Image();
+    img.width = width;
+    img.height = height;
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error('Image load failed'));
+      img.src = url;
+    });
+
+    // Draw on canvas with theme background so the PNG looks right when pasted.
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(width * ratio);
+    canvas.height = Math.ceil(height * ratio);
+    const ctx = canvas.getContext('2d');
+    const bg = getComputedStyle(document.body).backgroundColor || 'white';
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(ratio, ratio);
+    ctx.drawImage(img, 0, 0, width, height);
+
+    // Convert canvas to PNG blob.
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob((b) => b == null ? reject(new Error('toBlob failed')) : resolve(b), 'image/png');
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }

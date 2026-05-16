@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PlantUML for GitHub",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Renders plantuml code blocks directly on GitHub pages using the client-side TeaVM-compiled PlantUML engine.",
   "author": "Arnaud Roques",
   "homepage_url": "https://github.com/plantuml/plantuml",
@@ -54,5 +54,5 @@
     }
   ],
 
-  "permissions": []
+  "permissions": ["clipboardWrite"]
 }
