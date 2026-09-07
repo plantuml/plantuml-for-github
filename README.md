@@ -23,7 +23,7 @@ Bob --> Alice: hi
 
 ## How it works
 
-1. The extension's content script scans every GitHub page for `plantuml` code blocks.
+1. The extension's content script scans every GitHub page for `plantuml` code blocks. Blocks with no language marker at all (a languageless ` ``` ` fence, or an AsciiDoc `[plantuml]` listing block, which GitHub renders without the `asciidoctor-diagram` extension) are still recognized, by matching PlantUML's own `@startuml` / `@enduml` delimiters in the text.
 2. Each block is replaced with a sandboxed `<iframe>` packaged inside the extension.
 3. The iframe loads the TeaVM-compiled `plantuml.js` engine and renders the diagram to SVG.
 4. The result is displayed inline in the page, inside a small wrapper with a header bar.
@@ -75,6 +75,7 @@ Save it, then reload the page. The diagram should appear.
 - [X] "Copy SVG" / "Copy source" buttons
 - [x] Theme matching (light/dark) — follows GitHub's color mode
 - [x] Support `puml` and `wsd` language aliases
+- [x] Detect untagged / AsciiDoc `[plantuml]` blocks via `@startuml`/`@enduml` sniffing
 - [ ] Options page (toggle, performance settings)
 - [X] Chrome Web Store publication
 

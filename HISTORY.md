@@ -4,6 +4,27 @@ All notable changes to **PlantUML for GitHub** are documented here.
 The project is published as two browser extensions (Chrome and Firefox)
 that share the same version number from `0.2.2` onward.
 
+## Unreleased
+
+- **Untagged and AsciiDoc `[plantuml]` blocks are now detected**, fixing
+  [#3](https://github.com/plantuml/plantuml-for-github/issues/3).
+  GitHub renders AsciiDoc's `[plantuml]` listing-block syntax without
+  the `asciidoctor-diagram` extension, so the block comes out as a
+  bare `<pre>` with no class or `lang` attribute left to select on --
+  the same is true of a languageless Markdown ` ``` ` fence. The
+  content script now falls back to recognizing such untagged blocks by
+  their own `@startXXX` / `@endYYY` delimiters (`@startuml`,
+  `@startmindmap`, `@startsalt`, ...) when no language marker is
+  present. `[source,plantuml]` in AsciiDoc already worked before this
+  change, since Asciidoctor keeps that as `language-plantuml`.
+- Only the actual `@startXXX ... @endXXX` substring is rendered, not
+  the whole block -- so surrounding noise (the `[plantuml]` / `----`
+  lines themselves, prose) is ignored rather than fed to the engine.
+  **Known limitation:** if an untagged block contains more than one
+  `@startuml`/`@enduml` pair, only the first is rendered; put each
+  diagram in its own `[plantuml]` / `----` block (the idiomatic
+  AsciiDoc way) to render all of them.
+
 ## 0.3.1
 
 - **`!include <lib/...>` now works for 16 standard-library

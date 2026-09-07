@@ -35,6 +35,51 @@
   }
 
   // ------------------------------------------------------------------
+  // Pull out just the `@startXXX ... @endXXX` substring from a block of
+  // text, based solely on PlantUML's own delimiters (@startuml,
+  // @startmindmap, @startgantt, @startsalt, ...), or null if none is
+  // found. Used as a fallback for code blocks GitHub renders with no
+  // language marker at all -- see the sel4 comment below for why that
+  // happens.
+  //
+  // This does NOT require @startXXX to be the first line: the untagged
+  // <pre> can (and typically does) contain surrounding noise -- e.g. the
+  // AsciiDoc `[plantuml]` / `----` fence lines themselves, when someone
+  // pastes the whole AsciiDoc snippet (attribute list and delimiters
+  // included) into a plain, languageless code block rather than an
+  // actual rendered .adoc file. We deliberately extract and render only
+  // the matched substring, ignoring anything before or after it, the
+  // same way the PlantUML CLI/website already treats @startuml/@enduml
+  // as markers inside an otherwise-arbitrary text file.
+  //
+  // Known limitation: only the FIRST @startXXX/@endXXX pair is extracted.
+  // A block with several diagrams packed into one untagged <pre> (text
+  // between two @startuml/@enduml pairs) only renders the first one; the
+  // rest is silently ignored. This is an intentional scope decision, not
+  // an oversight -- the idiomatic AsciiDoc way to have several diagrams
+  // is one `[plantuml]` / `----` block per diagram, which already works
+  // correctly since each becomes its own separate <pre>. See the sel4
+  // TRACE below for a debug hint when this limitation is hit.
+  // ------------------------------------------------------------------
+  function extractPlantUMLSource(text) {
+    const t = text || '';
+    const startMatch = t.match(/^[ \t]*@start(\w+)\b.*$/m);
+    if (!startMatch) return null;
+    const tag = startMatch[1];
+    const startIdx = startMatch.index;
+    const endMatch = t.slice(startIdx).match(new RegExp('^[ \\t]*@end' + tag + '\\b.*$', 'm'));
+    if (!endMatch) return null;
+    const endIdx = startIdx + endMatch.index + endMatch[0].length;
+    return t.slice(startIdx, endIdx).trim();
+  }
+
+  // Extracted `@startXXX ... @endXXX` source for blocks discovered by the
+  // content-sniffing fallback (sel4), keyed by the <pre> element itself --
+  // populated in findPlantUMLBlocks, consumed by extractSource so we
+  // render only the real PlantUML source and not the surrounding noise.
+  const sniffedSource = new WeakMap();
+
+  // ------------------------------------------------------------------
   // Find all ```plantuml code blocks on the current page.
   //
   // GitHub renders fenced code blocks as either:
@@ -88,9 +133,58 @@
       }
     });
 
+    // AsciiDoc fallback: `[plantuml]` delimited blocks (the syntax used by
+    // the asciidoctor-diagram Ruby gem, e.g. in a README.adoc) --
+    //   [plantuml]
+    //   ----
+    //   @startuml
+    //   ...
+    //   @enduml
+    //   ----
+    // GitHub renders .adoc files with plain Asciidoctor and does *not*
+    // load the asciidoctor-diagram extension, so the `[plantuml]` style
+    // is silently dropped and the block comes out as a completely bare,
+    // languageless
+    //   <div class="listingblock"><div class="content"><pre>...</pre></div></div>
+    // -- no class, no `lang`, no `data-lang`, nothing to select on
+    // (verified empirically with @asciidoctor/core, the same engine
+    // GitHub's Ruby `asciidoctor` gem is transpiled from). The only way
+    // to recognize it is to look at the text itself: PlantUML sources
+    // are self-delimited by `@startXXX` / `@endXXX` markers, so any
+    // untagged <pre> whose content matches that pattern is treated as
+    // PlantUML. This also means a languageless Markdown ``` fence (no
+    // `plantuml` after the backticks) works the same way, which is a
+    // reasonable bonus rather than a problem.
+    //
+    // Writing `[source,plantuml]` instead of `[plantuml]` already works
+    // without this fallback: Asciidoctor's "source" style keeps the
+    // language as `<code class="language-plantuml">`, which sel3 above
+    // already matches.
+    const anyLangCodeSelector = 'code[class*="language-"]';
+    const sel4 = [];
+    root.querySelectorAll('pre').forEach((pre) => {
+      if (pre.classList.contains(PROCESSED_CLASS)) return;
+      if (pre.matches(preLangSelector)) return;
+      if (pre.closest(wrapperSelector)) return;
+      if (pre.querySelector(anyLangCodeSelector)) return; // already labeled with some language
+      const extracted = extractPlantUMLSource(pre.textContent);
+      if (extracted === null) return;
+      // Debug hint for the known "only the first pair" limitation (see the
+      // extractPlantUMLSource comment above): a second @startXXX marker
+      // anywhere in the block means part of it is being silently dropped.
+      if ((pre.textContent.match(/^[ \t]*@start\w+\b/gm) || []).length > 1) {
+        TRACE('sel4: multiple @startXXX markers found in one untagged block; ' +
+              'only the first @start.../@end... pair is rendered', pre);
+      }
+      sniffedSource.set(pre, extracted);
+      sel4.push(pre);
+      blocks.push(pre);
+    });
+
     TRACE('findPlantUMLBlocks: sel1(' + wrapperSelector + ')=' + sel1.length +
           ' sel2(' + preLangSelector + ')=' + sel2.length +
           ' sel3(' + codeLangSelector + ')=' + sel3.length +
+          ' sel4(untagged @startXXX/@endXXX)=' + sel4.length +
           ' -> total new blocks=' + blocks.length);
     return blocks;
   }
@@ -101,6 +195,10 @@
   // markup that GitHub may have injected.
   // ------------------------------------------------------------------
   function extractSource(blockEl) {
+    // Blocks found by the content-sniffing fallback (sel4) may have extra
+    // noise around the actual PlantUML source (see extractPlantUMLSource);
+    // use the pre-extracted substring for those instead of the raw text.
+    if (sniffedSource.has(blockEl)) return sniffedSource.get(blockEl);
     // For <div class="highlight-source-plantuml"><pre>, get inner <pre> text.
     const pre = blockEl.matches('pre') ? blockEl : blockEl.querySelector('pre');
     if (!pre) return blockEl.textContent.trim();
