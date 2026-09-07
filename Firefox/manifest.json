@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PlantUML for GitHub",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Renders plantuml code blocks directly on GitHub pages using the client-side TeaVM-compiled PlantUML engine.",
   "author": "Arnaud Roques",
   "homepage_url": "https://github.com/plantuml/plantuml",
@@ -40,7 +40,23 @@
         "vendor/plantuml.0.js",
         "vendor/plantuml.1.js",
         "vendor/plantuml.2.js",
-        "vendor/plantuml.3.js"
+        "vendor/plantuml.3.js",
+        "adaml.min.js",
+        "archimate.min.js",
+        "azure.min.js",
+        "c4.min.js",
+        "classy-c4.min.js",
+        "classy.min.js",
+        "cloudinsight.min.js",
+        "cloudogu.min.js",
+        "domainstory.min.js",
+        "edgy.min.js",
+        "eip.min.js",
+        "elastic.min.js",
+        "gcp.min.js",
+        "k8s.min.js",
+        "kubernetes.min.js",
+        "osa2.min.js"
       ],
       "matches": ["https://github.com/*"]
     }

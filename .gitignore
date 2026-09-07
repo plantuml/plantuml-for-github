@@ -11,3 +11,6 @@ Thumbs.db
 # Node (in case you add tooling later)
 node_modules/
 npm-debug.log*
+
+# Build artifacts
+*.zip

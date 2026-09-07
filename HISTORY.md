@@ -4,6 +4,25 @@ All notable changes to **PlantUML for GitHub** are documented here.
 The project is published as two browser extensions (Chrome and Firefox)
 that share the same version number from `0.2.2` onward.
 
+## 0.3.1
+
+- **`!include <lib/...>` now works for 16 standard-library
+  collections**, most notably **C4** (`!include <C4/C4_Context>`
+  and friends), fixing
+  [#10](https://github.com/plantuml/plantuml-for-github/issues/10).
+  The engine lazy-loads a `<lib>.min.js` bundle next to
+  `renderer.html`; the extension previously did not ship any of
+  these bundles, so every stdlib include failed with a fatal
+  parsing error. The extension now bundles the self-contained
+  libraries that are small enough to ship (~2.5 MB raw in total):
+  adaml, archimate, azure, c4, classy, classy-c4, cloudinsight,
+  cloudogu, domainstory, edgy, eip, elastic, gcp, k8s, kubernetes,
+  osa2.
+- The heavy sprite collections (ibm, tupadr3, awslib*, material*,
+  logos, office, osa, bootstrap*) are **not** bundled: together
+  they would add ~90 MB to the package. Supporting them needs an
+  on-demand data download, which is tracked separately.
+
 ## 0.3.0
 
 - **The Graphviz WebAssembly module is gone.** Graph layout (class,

@@ -47,6 +47,20 @@ FILES = {
     "vendor/plantuml.js":    CHROME_DIR / "vendor" / "plantuml.js",
 }
 
+# Standard-library bundles the engine lazy-loads for `!include <lib/...>`.
+# TeaVmScriptLoader resolves `<lib>.min.js` relative to renderer.html, so
+# these MUST live at the extension root (not under vendor/). Only the
+# self-contained libraries small enough to ship are bundled; the heavy
+# sprite collections (ibm, tupadr3, awslib*, material*, logos, office,
+# osa, bootstrap*) stay out - together they would add ~90 MB.
+STDLIB_BUNDLES = [
+    "adaml", "archimate", "azure", "c4", "classy", "classy-c4",
+    "cloudinsight", "cloudogu", "domainstory", "edgy", "eip",
+    "elastic", "gcp", "k8s", "kubernetes", "osa2",
+]
+for lib in STDLIB_BUNDLES:
+    FILES[f"{lib}.min.js"] = CHROME_DIR / f"{lib}.min.js"
+
 # Pre-flight check: every declared file must exist.
 missing = [arcname for arcname, src in FILES.items() if not src.exists()]
 if missing:

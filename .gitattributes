@@ -1,0 +1,4 @@
+# Stdlib bundles are byte-for-byte copies of the published files at
+# https://plantuml.github.io/plantuml/js-plantuml/ and must stay that way,
+# so keep git from normalizing their line endings on checkout.
+*.min.js -text
