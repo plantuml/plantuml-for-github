@@ -4,7 +4,7 @@ All notable changes to **PlantUML for GitHub** are documented here.
 The project is published as two browser extensions (Chrome and Firefox)
 that share the same version number from `0.2.2` onward.
 
-## Unreleased
+## 0.3.2
 
 - **Untagged and AsciiDoc `[plantuml]` blocks are now detected**, fixing
   [#3](https://github.com/plantuml/plantuml-for-github/issues/3).
