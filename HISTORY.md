@@ -4,6 +4,15 @@ All notable changes to **PlantUML for GitHub** are documented here.
 The project is published as two browser extensions (Chrome and Firefox)
 that share the same version number from `0.2.2` onward.
 
+## Unreleased
+
+- **GitHub Enterprise Cloud (`*.ghe.com`) is now supported**, fixing
+  [#14](https://github.com/plantuml/plantuml-for-github/issues/14).
+  The content script and the web-accessible resources now also match
+  `https://*.ghe.com/*` (GitHub Enterprise Cloud with data residency,
+  e.g. `https://mycompany.ghe.com/`). Self-hosted GitHub Enterprise
+  Server instances on custom domains are not covered.
+
 ## 0.3.2
 
 - **Untagged and AsciiDoc `[plantuml]` blocks are now detected**, fixing

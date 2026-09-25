@@ -27,7 +27,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://github.com/*"
+        "https://github.com/*",
+        "https://*.ghe.com/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"
@@ -65,7 +66,7 @@
         "kubernetes.min.js",
         "osa2.min.js"
       ],
-      "matches": ["https://github.com/*"]
+      "matches": ["https://github.com/*", "https://*.ghe.com/*"]
     }
   ],
 

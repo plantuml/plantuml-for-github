@@ -34,7 +34,7 @@ This is the same architecture GitHub already uses for Mermaid — proving that c
 ## Security & permissions
 
 The extension declares **zero Chrome permissions** (no host permissions, no
-storage, no tabs API). It only ships a content script scoped to `github.com`
+storage, no tabs API). It only ships a content script scoped to `github.com` and `*.ghe.com` (GitHub Enterprise Cloud)
 and a packaged renderer page.
 
 The extension also runs under the stock Manifest V3 Content Security Policy

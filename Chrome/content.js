@@ -1,7 +1,7 @@
 // =====================================================================
 // PlantUML for GitHub - Content Script
 // =====================================================================
-// Runs on every github.com page. Detects ```plantuml code blocks and
+// Runs on every github.com and *.ghe.com (GitHub Enterprise Cloud) page. Detects ```plantuml code blocks and
 // replaces them with a sandboxed iframe that renders the diagram
 // client-side using the TeaVM-compiled PlantUML engine.
 // =====================================================================
