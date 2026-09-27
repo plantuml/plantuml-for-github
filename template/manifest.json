@@ -1,7 +1,12 @@
 {
   "manifest_version": 3,
   "name": "PlantUML for GitHub",
+#if CHROME
+  "version": "0.3.3",
+#endif
+#if FIREFOX
   "version": "0.3.2",
+#endif
   "description": "Renders plantuml code blocks directly on GitHub pages using the client-side TeaVM-compiled PlantUML engine.",
   "author": "Arnaud Roques",
   "homepage_url": "https://github.com/plantuml/plantuml",

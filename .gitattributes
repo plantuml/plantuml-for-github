@@ -2,3 +2,16 @@
 # https://plantuml.github.io/plantuml/js-plantuml/ and must stay that way,
 # so keep git from normalizing their line endings on checkout.
 *.min.js -text
+
+# Chrome/ and Firefox/ are build output: manifest.json/content.js/renderer.*
+# are generated from template/ by template.py, vendor/plantuml*.js is the
+# vendored TeaVM engine, and the top-level *.min.js files are stdlib bundles
+# fetched by fetch_stdlib.py. Nothing under them is hand-edited directly, so
+# mark them generated -- GitHub then collapses their diffs in PRs and drops
+# them from the repo's language statistics.
+Chrome/** linguist-generated=true
+Firefox/** linguist-generated=true
+
+# ...except the Firefox packaging helpers, which live inside Firefox/ but
+# are hand-written source, not build output.
+Firefox/*.py linguist-generated=false

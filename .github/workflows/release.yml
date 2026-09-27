@@ -3,6 +3,11 @@ name: Release extension packages
 # Triggered when a version tag is pushed (e.g. `git tag v0.2.4 && git push --tags`).
 # The job rebuilds Chrome/ and Firefox/ from template/, packages both ZIPs, and
 # publishes a GitHub Release with the two archives as assets.
+#
+# The tag/version check only applies to the Chrome build: Chrome/manifest.json
+# must match the pushed tag. The Firefox build is allowed to lag behind (its
+# own version is read from Firefox/manifest.json separately below), so a
+# Chrome-only release doesn't require bumping Firefox in lockstep.
 on:
   push:
     tags:
@@ -61,6 +66,18 @@ jobs:
             exit 1
           fi
 
+      # Firefox is allowed to release on its own schedule/version, independent
+      # of the tag driving this workflow (see comment at the top of this file).
+      # Read its actual version from Firefox/manifest.json rather than assuming
+      # it matches the tag, so a Chrome-only release doesn't require Firefox to
+      # be bumped in lockstep.
+      - name: Read Firefox manifest version
+        id: firefox
+        run: |
+          firefox_version=$(python -c "import json; print(json.load(open('Firefox/manifest.json'))['version'])")
+          echo "version=${firefox_version}" >> "$GITHUB_OUTPUT"
+          echo "Firefox/manifest.json version: ${firefox_version}"
+
       - name: Build Chrome ZIP
         run: python build_zip_chrome.py
 
@@ -91,16 +108,21 @@ jobs:
           echo "----------------------------"
 
       # `gh` is preinstalled on GitHub-hosted runners and uses GITHUB_TOKEN
-      # automatically. Both ZIP filenames are derived from the manifest
-      # version we just verified.
+      # automatically. The Chrome ZIP filename uses the tag version (verified
+      # above to match Chrome/manifest.json); the Firefox ZIP filename uses
+      # Firefox's own manifest version, which may differ from the tag when
+      # only Chrome is being released.
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          version="${{ steps.tag.outputs.version }}"
           tag="${{ steps.tag.outputs.tag }}"
+          chrome_version="${{ steps.tag.outputs.version }}"
+          firefox_version="${{ steps.firefox.outputs.version }}"
+          echo "Chrome asset version:  ${chrome_version}"
+          echo "Firefox asset version: ${firefox_version}"
           gh release create "${tag}" \
             --title "${tag}" \
             --notes-file release_notes.md \
-            "plantuml-for-github-chrome-${version}.zip" \
-            "plantuml-for-github-firefox-${version}.zip"
+            "plantuml-for-github-chrome-${chrome_version}.zip" \
+            "plantuml-for-github-firefox-${firefox_version}.zip"
