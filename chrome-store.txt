@@ -1,0 +1,55 @@
+PlantUML for GitHub
+
+A Chrome extension that renders "plantuml" code blocks directly on GitHub pages, using the TeaVM-compiled PlantUML engine that runs entirely client-side.
+Hosted at https://github.com/plantuml/plantuml-for-github
+
+No server. No tokens. No tracking. Zero permissions.
+
+HOW IT WORKS
+1. The extension's content script scans every GitHub page for "plantuml" code blocks.
+2. Each block is replaced with a sandboxed "<iframe>" packaged inside the extension.
+3. The iframe loads the TeaVM-compiled "plantuml.js" engine and renders the diagram to SVG.
+4. The result is displayed inline in the page, inside a small wrapper with a header bar.
+5. The header bar shows a toggle button (top-left of the wrapper) that switches between the rendered diagram and the original PlantUML source. The source view uses GitHub's own syntax highlighting, so it looks exactly as it would without the extension installed.
+
+This is the same architecture GitHub already uses for Mermaid — proving that client-side PlantUML can be integrated natively with zero infrastructure cost.
+
+SECURITY AND PERMISSIONS
+
+Minimal Permissions: It requires no host permissions, storage, or tabs API. The only declared permission is clipboardWrite, which is strictly used to power the user-triggered "Copy as Bitmap" button, allowing the generated diagram to be copied directly to the clipboard.
+
+The extension runs under the stock Manifest V3 Content Security Policy for extension pages — essentially "script-src 'self'" — with no relaxation at all. Diagrams that need graph layout (class, component, deployment, state, and use-case diagrams) are laid out by Smetana, PlantUML's own built-in Java port of the Graphviz layout algorithms, compiled into the very same "plantuml.js" file as the rest of the engine. There is no WebAssembly module anywhere in the extension, and no 'wasm-unsafe-eval' directive in the manifest — nothing to relax.
+
+This matters beyond the extension itself: GitHub serves its own Mermaid renderer under a "script-src 'self'" CSP that blocks WebAssembly, so an engine that needed WASM could never be adopted natively. This one runs as a single JavaScript file under exactly that policy.
+
+In short: the engine runs entirely inside a sandboxed iframe with an opaque origin, with no network access and no shared state with the host page.
+
+ROADMAP
+- [x] MVP: detect and render plantuml blocks
+- [x] Firefox support (Manifest V3 is now supported in Firefox)
+- [x] "Copy as Bitmap" buttons
+- [x] Theme matching (light/dark) — follows GitHub's color mode
+- [x] Support puml and wsd language aliases
+- [ ] Options page (toggle, performance settings)
+- [x] Chrome Web Store publication
+
+WHY THIS EXTENSIONS EXISTS
+
+PlantUML support on GitHub has been requested for 4+ years: https://github.com/orgs/community/discussions/10111
+
+The main blocker was performance and infrastructure cost. With the TeaVM-compiled engine, that blocker no longer exists.
+This extension demonstrates that PlantUML can run natively on GitHub.com with zero server-side changes — using the exact same sandbox pattern GitHub uses for Mermaid.
+
+If you'd like to see this integrated natively, please upvote the discussion: https://github.com/orgs/community/discussions/10111
+
+PRIVACY
+
+Zero permissions beyond clipboardWrite. Zero tracking. Zero network requests.
+Everything runs locally in a sandboxed iframe.
+
+LINKS
+
+Source code: https://github.com/plantuml/plantuml-for-github
+Discussion:  https://github.com/orgs/community/discussions/10111
+
+LICENSE: MIT
