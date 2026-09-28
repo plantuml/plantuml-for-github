@@ -1,0 +1,4 @@
+@startuml
+alice->bob:demo2
+return demo2
+@enduml
