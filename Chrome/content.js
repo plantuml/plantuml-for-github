@@ -10,7 +10,11 @@
   'use strict';
 
   // ====== TRACE ======
-  const TRACE = (...args) => console.log('[PUML4GH][content]', ...args);
+  // Set DEBUG to true to get detailed traces in the page's console.
+  const DEBUG = false;
+  const TRACE = DEBUG
+    ? (...args) => console.log('[PUML4GH][content]', ...args)
+    : () => {};
   TRACE('content script loaded on', location.href);
   // ===================
 
@@ -1096,6 +1100,245 @@
     // already displays the error inline.
   });
 
+  // ==================================================================
+  // Standalone PlantUML files (issue #15)
+  // ==================================================================
+  // On GitHub's file view (/<owner>/<repo>/blob/<ref>/<path>.puml), show
+  // the rendered diagram in place of the code, with the usual header
+  // buttons. The header's view-toggle switches between the diagram and
+  // GitHub's own code view (line numbers, highlighting, blame links...).
+  //
+  // Source retrieval: GitHub's React code view virtualizes the lines
+  // (only the visible ones are in the DOM), but it keeps the complete
+  // file content in a hidden textarea used for selection / copy. That
+  // textarea is our source -- no network request, works on private repos.
+  //
+  // GitHub navigates between files without reloading the page, and the
+  // textarea can briefly still hold the previous file. Rather than trying
+  // to guess when the new content is ready, syncBlobView() simply
+  // reconciles: whenever the DOM changes, if the textarea content differs
+  // from what is currently rendered, the diagram is rebuilt.
+  // ==================================================================
+
+  // Extensions treated as standalone PlantUML files. .iuml is deliberately
+  // left out: those are include fragments, not full diagrams.
+  const PUML_FILE_EXTENSIONS = ['.puml', '.plantuml', '.pu', '.wsd'];
+
+  // Marker class for the elements we create on the file view.
+  const BLOB_SOURCE_CLASS = 'plantuml-for-github-blob-source';
+
+  // How long to keep showing the previous diagram when the URL changed to
+  // another PlantUML file but the textarea still holds the old content.
+  const BLOB_STALE_GRACE_MS = 1500;
+
+  // Hides GitHub's code view while the diagram is shown. A class with
+  // !important (rather than an inline style) so that a React re-render
+  // resetting the element's style cannot bring the code back; the class
+  // itself is re-applied on every sync in case React resets className.
+  const BLOB_HIDDEN_CLASS = 'plantuml-for-github-hidden';
+  function ensureBlobStyle() {
+    if (document.getElementById('plantuml-for-github-blob-style')) return;
+    const style = document.createElement('style');
+    style.id = 'plantuml-for-github-blob-style';
+    style.textContent = '.' + BLOB_HIDDEN_CLASS + ' { display: none !important; }';
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  // Current file-view diagram, or null:
+  //   { href, source, wrapper, codeView, showingCode }
+  let blobView = null;
+  let blobHref = null;       // URL seen by the last sync
+  let blobHrefSince = 0;     // when that URL was first seen
+
+  function isPumlBlobUrl() {
+    const m = location.pathname.match(/^\/[^/]+\/[^/]+\/blob\/(.+)$/);
+    if (!m) return false;
+    let refAndPath = m[1];
+    try {
+      refAndPath = decodeURIComponent(refAndPath);
+    } catch (e) { /* keep the raw path */ }
+    const lower = refAndPath.toLowerCase();
+    return PUML_FILE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+  }
+
+  // Something that only exists in the file header bar (Code/Blame
+  // switch, Raw / download buttons).
+  const FILE_HEADER_MARKER =
+    '[data-testid="raw-button"], a[href*="/raw/"], a[href*="/blame/"]';
+
+  // The block we insert the diagram before, and hide while the diagram is
+  // shown. GitHub's current file view looks like this:
+  //
+  //   div.container                       <- also holds the file header
+  //     div[class*=blobContentWrapper]
+  //       section[class*=blobContentSection]
+  //         div[class*=codeBlobWrapper]    (position: relative; flex)
+  //           div#highlighted-line-menu-positioner
+  //             div#copilot-button-positioner
+  //               div[class*=codeBlobInner]  (position: relative)  <- this one
+  //                 textarea#read-only-cursor-text-area (absolute, z-index 1)
+  //                 code lines
+  //
+  // We take the nearest positioned ancestor of the textarea (the element
+  // its absolute overlay is laid out against), insert the diagram right
+  // before it and hide it. Anything above that level ends up under the
+  // file header, which GitHub lays over the top of the content area and
+  // only clears from inside the section.
+  function findCodeView(textarea) {
+    let el = textarea.parentElement;
+    while (el && el !== document.body) {
+      const cs = getComputedStyle(el);
+      if (cs.display !== 'contents' && cs.position !== 'static') break;
+      el = el.parentElement;
+    }
+    if (el && el !== document.body && el.parentElement &&
+        !el.querySelector(FILE_HEADER_MARKER)) {
+      return el;
+    }
+    // Unexpected layout: fall back to the known section class.
+    return textarea.closest('section') || textarea.parentElement;
+  }
+
+  function applyBlobViewState() {
+    if (!blobView) return;
+    blobView.codeView.classList.toggle(BLOB_HIDDEN_CLASS, !blobView.showingCode);
+  }
+
+  function removeBlobView() {
+    if (!blobView) return;
+    if (blobView.wrapper.isConnected) blobView.wrapper.remove();
+    blobView.codeView.classList.remove(BLOB_HIDDEN_CLASS);
+    blobView = null;
+  }
+
+  function syncBlobView() {
+    const href = location.href.split('#')[0];
+    if (href !== blobHref) {
+      blobHref = href;
+      blobHrefSince = Date.now();
+    }
+
+    if (!isPumlBlobUrl()) {
+      removeBlobView();
+      return;
+    }
+
+    const textarea = document.getElementById('read-only-cursor-text-area');
+    if (!textarea) return;
+    const source = (textarea.value || '').replace(/\r\n?/g, '\n');
+    // Not a diagram (yet): either still loading, or the textarea still
+    // holds a non-PlantUML file we just navigated away from.
+    if (extractPlantUMLSource(source) === null) return;
+
+    if (blobView && blobView.wrapper.isConnected && blobView.source === source) {
+      applyBlobViewState();
+      // Same content. Either nothing changed, or we navigated to another
+      // file and the textarea has not been updated yet: wait a bit for it,
+      // after which identical files are simply accepted as such.
+      if (blobView.href === href) return;
+      if (Date.now() - blobHrefSince < BLOB_STALE_GRACE_MS) return;
+      blobView.href = href;
+      return;
+    }
+
+    const codeView = findCodeView(textarea);
+    if (!codeView || !codeView.parentNode) return;
+
+    removeBlobView();
+    ensureBlobStyle();
+
+    // A hidden <pre> holding the source: processBlock() wraps it with the
+    // standard header + renderer iframe, exactly like a Markdown block.
+    const pre = document.createElement('pre');
+    pre.className = BLOB_SOURCE_CLASS;
+    pre.textContent = source;
+    codeView.parentNode.insertBefore(pre, codeView);
+    processBlock(pre);
+
+    const wrapper = pre.parentNode;
+    if (!wrapper || !wrapper.classList.contains('plantuml-for-github-wrapper')) {
+      // processBlock bailed out (empty source): undo.
+      pre.remove();
+      return;
+    }
+    // The wrapper sits inside GitHub's file box, which already has its own
+    // border: drop our outer border, rounded corners and margin so it
+    // blends in instead of drawing a box inside the box (the header's
+    // bottom border stays as the separator under our buttons).
+    wrapper.style.margin = '0';
+    wrapper.style.border = 'none';
+    wrapper.style.borderRadius = '0';
+    // GitHub's code view relies on a transparent textarea overlay for
+    // selection and may disable pointer events on the code area. Make sure
+    // our wrapper receives clicks and sits above any such layer.
+    wrapper.style.pointerEvents = 'auto';
+    wrapper.style.position = 'relative';
+    wrapper.style.zIndex = '2';
+
+    // GitHub's code view listens to mouse/keyboard events at the React
+    // root (selection, line highlighting, keyboard shortcuts...). Keep our
+    // wrapper's events to ourselves; the buttons' own listeners still run
+    // since they are attached to the buttons themselves.
+    ['mousedown', 'mouseup', 'pointerdown', 'pointerup', 'click', 'keydown']
+      .forEach((type) => wrapper.addEventListener(type, (e) => e.stopPropagation()));
+
+    // processBlock's toggle shows/hides our hidden <pre>. On the file view
+    // we show GitHub's own code view instead, which is richer. This
+    // listener is registered after processBlock's, so it runs second and
+    // just mirrors the state it left.
+    const toggleBtn = wrapper.querySelector('.plantuml-for-github-toggle');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        const showingSource = pre.style.display !== 'none';
+        pre.style.display = 'none';
+        if (blobView && blobView.wrapper === wrapper) {
+          blobView.showingCode = showingSource;
+          applyBlobViewState();
+        }
+      });
+    }
+
+    // Diagram view by default: hide GitHub's code view.
+    blobView = { href, source, wrapper, codeView, showingCode: false };
+    applyBlobViewState();
+  }
+
+  // Coalesce the (very frequent) DOM mutations into one sync per burst.
+  let blobSyncTimer = null;
+  function scheduleBlobSync() {
+    if (blobSyncTimer !== null) return;
+    blobSyncTimer = setTimeout(() => {
+      blobSyncTimer = null;
+      syncBlobView();
+    }, 150);
+  }
+
+  // The textarea's value can change without any DOM mutation, so after a
+  // URL change, also poll for a few seconds.
+  let blobPollTimer = null;
+  function pollBlobView() {
+    if (blobPollTimer !== null) clearInterval(blobPollTimer);
+    let remaining = 20;
+    blobPollTimer = setInterval(() => {
+      syncBlobView();
+      if (--remaining <= 0) {
+        clearInterval(blobPollTimer);
+        blobPollTimer = null;
+      }
+    }, 250);
+  }
+
+  let blobPolledHref = null;
+  function onPossibleNavigation() {
+    const href = location.href.split('#')[0];
+    if (href === blobPolledHref) return;
+    blobPolledHref = href;
+    if (isPumlBlobUrl() || blobView) pollBlobView();
+  }
+
+  window.addEventListener('popstate', onPossibleNavigation);
+  document.addEventListener('turbo:load', onPossibleNavigation);
+
   // ------------------------------------------------------------------
   // Initial scan + observe DOM mutations.
   //
@@ -1112,9 +1355,11 @@
   TRACE('starting initial scan');
   scanAndProcess(document.body);
   TRACE('initial scan done');
+  syncBlobView();
+  onPossibleNavigation();
 
   // ====== DIAGNOSTIC: dump every <pre> / <code> that could be a plantuml block ======
-  setTimeout(() => {
+  if (DEBUG) setTimeout(() => {
     TRACE('=== DIAGNOSTIC DUMP ===');
     const allPre = document.querySelectorAll('pre');
     TRACE('total <pre> elements on page: ' + allPre.length);
@@ -1148,6 +1393,8 @@
 
   // Watch for dynamically added content.
   const observer = new MutationObserver((mutations) => {
+    onPossibleNavigation();
+    scheduleBlobSync();
     for (const m of mutations) {
       for (const node of m.addedNodes) {
         if (node.nodeType === Node.ELEMENT_NODE) {

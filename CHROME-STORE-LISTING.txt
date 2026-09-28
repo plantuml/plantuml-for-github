@@ -1,6 +1,6 @@
 PlantUML for GitHub
 
-A Chrome extension that renders plantuml code blocks directly on GitHub and GitHub Enterprise Cloud (*.ghe.com) pages, using the TeaVM-compiled PlantUML engine that runs entirely client-side in your browser.
+A Chrome extension that renders plantuml code blocks and standalone .puml files directly on GitHub and GitHub Enterprise Cloud (*.ghe.com) pages, using the TeaVM-compiled PlantUML engine that runs entirely client-side in your browser.
 
 No server. No tokens. No tracking. Minimal permissions.
 
@@ -10,10 +10,11 @@ HOW IT WORKS
 3. The iframe loads the TeaVM-compiled plantuml.js engine and renders the diagram to SVG.
 4. The result is displayed inline in the page, inside a small wrapper with a header bar.
 5. The header bar shows a toggle button that switches between the rendered diagram and the original PlantUML source. The source view uses GitHub's own syntax highlighting, so it looks exactly as it would without the extension installed.
+6. Standalone PlantUML files (.puml, .plantuml, .pu, .wsd) opened on GitHub are rendered the same way, in place of the code, with the same toggle back to GitHub's own code view. Works on private repositories too.
 
 This is the same architecture GitHub already uses for Mermaid -- proving that client-side PlantUML can be integrated natively with zero infrastructure cost.
 
-The engine ships with 16 standard-library bundles out of the box (C4, Azure, GCP, Kubernetes, and more), so !include <C4/C4_Context> and similar work without any setup.
+The engine ships with 16 standard-library bundles out of the box (C4, Azure, GCP, Kubernetes, and more), so !include <C4/C4_Context> and similar work without any setup. Emoji (<:1f600:>), built-in themes (!theme) and OpenIconic sprites (<&icon>) are bundled too.
 
 SECURITY AND PERMISSIONS
 
@@ -33,6 +34,8 @@ ROADMAP
 - [x] Support puml and wsd language aliases
 - [x] Standard library includes (C4 and 15 more)
 - [x] GitHub Enterprise Cloud (*.ghe.com) support
+- [x] Standalone .puml file rendering
+- [x] Emoji, themes and OpenIconic sprites
 - [x] Chrome Web Store publication
 - [ ] Options page (toggle, performance settings)
 

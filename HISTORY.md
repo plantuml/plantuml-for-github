@@ -19,6 +19,13 @@ that share the same version number from `0.2.2` onward.
   reload is handled. `.iuml` include fragments are left as code.
   **Known limitation:** a file with several `@startuml`/`@enduml` pairs
   only renders the first diagram.
+- **Emoji, themes and OpenIconic sprites now render.** A diagram using
+  `<:emoji:>` (e.g. `<:1f600:>`, `<:sunglasses:>`), `!theme` or
+  `<&icon>` used to fail to render (for emoji: "Rendering timed out
+  after 15s"): the engine lazy-loads `emoji.js`, `themes.js` and
+  `openiconic.js` next to `renderer.html`, and the extension did not
+  ship them. They are now bundled like the stdlib libraries (about
+  2.2 MB in total) and refreshed by `fetch_stdlib.py`.
 - **Quieter console.** The detailed `[PUML4GH]` debug traces are now
   off by default (a `DEBUG` flag at the top of `content.js` and
   `renderer.js` turns them back on).

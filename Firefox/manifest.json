@@ -57,7 +57,10 @@
         "gcp.min.js",
         "k8s.min.js",
         "kubernetes.min.js",
-        "osa2.min.js"
+        "osa2.min.js",
+        "emoji.js",
+        "themes.js",
+        "openiconic.js"
       ],
       "matches": ["https://github.com/*", "https://*.ghe.com/*"]
     }

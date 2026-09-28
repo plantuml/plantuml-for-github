@@ -2,6 +2,10 @@
 # https://plantuml.github.io/plantuml/js-plantuml/ and must stay that way,
 # so keep git from normalizing their line endings on checkout.
 *.min.js -text
+# Same for the engine's support scripts, fetched from the same place.
+emoji.js -text
+themes.js -text
+openiconic.js -text
 
 # Chrome/ and Firefox/ are build output: manifest.json/content.js/renderer.*
 # are generated from template/ by template.py, vendor/plantuml*.js is the

@@ -1,8 +1,8 @@
 # PlantUML for GitHub
 
-A Chrome extension that renders ` ```plantuml ` code blocks directly on GitHub pages, using the TeaVM-compiled PlantUML engine that runs entirely client-side.
+A Chrome extension that renders ` ```plantuml ` code blocks and standalone `.puml` files directly on GitHub pages, using the TeaVM-compiled PlantUML engine that runs entirely client-side.
 
-**No server. No tokens. No tracking. Zero permissions.**
+**No server. No tokens. No tracking. Minimal permissions.**
 
 ## Installation
 
@@ -28,14 +28,18 @@ Bob --> Alice: hi
 3. The iframe loads the TeaVM-compiled `plantuml.js` engine and renders the diagram to SVG.
 4. The result is displayed inline in the page, inside a small wrapper with a header bar.
 5. The header bar shows a **toggle button** (top-left of the wrapper) that switches between the rendered diagram and the original PlantUML source. The source view uses GitHub's own syntax highlighting, so it looks exactly as it would without the extension installed.
+6. Standalone PlantUML files (`.puml`, `.plantuml`, `.pu`, `.wsd`) opened on GitHub's file view are rendered the same way, in place of the code. The toggle button switches to GitHub's own code view (line numbers, highlighting) and back. The source is read from the page itself, so private repositories work too.
 
 This is the same architecture GitHub already uses for Mermaid — proving that client-side PlantUML can be integrated natively with zero infrastructure cost.
 
 ## Security & permissions
 
-The extension declares **zero Chrome permissions** (no host permissions, no
-storage, no tabs API). It only ships a content script scoped to `github.com` and `*.ghe.com` (GitHub Enterprise Cloud)
-and a packaged renderer page.
+The extension requires **no host permissions, no storage and no tabs API**.
+The only declared permission is `clipboardWrite`, used solely by the
+user-triggered "Copy as bitmap" button to put the rendered diagram on the
+clipboard. Beyond that, it only ships a content script scoped to
+`github.com` and `*.ghe.com` (GitHub Enterprise Cloud) and a packaged
+renderer page.
 
 The extension also runs under the stock Manifest V3 Content Security Policy
 (essentially `script-src 'self'`), with no relaxation at all. Diagrams that
@@ -76,6 +80,9 @@ Save it, then reload the page. The diagram should appear.
 - [x] Theme matching (light/dark) — follows GitHub's color mode
 - [x] Support `puml` and `wsd` language aliases
 - [x] Detect untagged / AsciiDoc `[plantuml]` blocks via `@startuml`/`@enduml` sniffing
+- [x] Render standalone `.puml` / `.plantuml` / `.pu` / `.wsd` files
+- [x] Emoji (`<:1f600:>`), `!theme` and OpenIconic (`<&icon>`) support
+- [ ] Render `.puml` files in pull request diffs
 - [ ] Options page (toggle, performance settings)
 - [X] Chrome Web Store publication
 
@@ -104,6 +111,7 @@ Visit any GitHub page containing a ` ```plantuml ` block, for example:
 
 - A README that uses PlantUML
 - An issue or PR comment with a `plantuml` fenced block
+- A `.puml` file in any repository
 
 You should see the diagram rendered inline, with a small "🌱 PlantUML (client-side render)" badge above it. Click the toggle button (the `<>` icon to the left of the badge) to switch to the original source view; click it again (it now shows an eye icon) to switch back to the diagram.
 

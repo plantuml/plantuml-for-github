@@ -2,7 +2,7 @@
 fetch_stdlib.py -- refresh the vendored stdlib bundles from the project site.
 
 The extension ships the self-contained stdlib bundles (see STDLIB_BUNDLES)
-as byte-for-byte copies of the published files at
+and the engine's support scripts (see SUPPORT_SCRIPTS) as byte-for-byte copies of the published files at
 https://plantuml.github.io/plantuml/js-plantuml/. They go stale whenever the
 site republishes (a library version bump upstream), so refreshing them is
 part of preparing a release: run this script, review the reported changes,
@@ -15,7 +15,8 @@ git.
 
 The bundle list appears in three places that must stay in sync:
 this script, build_zip_chrome.py and build_zip_firefox.py (STDLIB_BUNDLES
-in each), plus the web_accessible_resources list in template/manifest.json.
+and SUPPORT_SCRIPTS in each), plus the web_accessible_resources list in
+template/manifest.json.
 """
 
 import sys
@@ -33,14 +34,20 @@ STDLIB_BUNDLES = [
     "elastic", "gcp", "k8s", "kubernetes", "osa2",
 ]
 
+# Support scripts the engine lazy-loads the same way, from the same place:
+# emoji.js for <:emoji:> sprites, themes.js for `!theme`, openiconic.js for
+# <&icon> sprites. Without them, a diagram using one of these features
+# fails to render (the load of the missing file never completes).
+SUPPORT_SCRIPTS = ["emoji.js", "themes.js", "openiconic.js"]
+
 ROOT = Path(__file__).resolve().parent
 TARGET_DIRS = [ROOT / "Chrome", ROOT / "Firefox"]
 
 
 def main() -> int:
     changed = 0
-    for lib in STDLIB_BUNDLES:
-        name = f"{lib}.min.js"
+    names = [f"{lib}.min.js" for lib in STDLIB_BUNDLES] + SUPPORT_SCRIPTS
+    for name in names:
         url = BASE_URL + name
         try:
             with urllib.request.urlopen(url) as resp:

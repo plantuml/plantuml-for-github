@@ -61,6 +61,13 @@ STDLIB_BUNDLES = [
 for lib in STDLIB_BUNDLES:
     FILES[f"{lib}.min.js"] = CHROME_DIR / f"{lib}.min.js"
 
+# Support scripts the engine lazy-loads the same way (same root-level
+# location): emoji.js for <:emoji:> sprites, themes.js for `!theme`,
+# openiconic.js for <&icon> sprites. Fetched by fetch_stdlib.py.
+SUPPORT_SCRIPTS = ["emoji.js", "themes.js", "openiconic.js"]
+for name in SUPPORT_SCRIPTS:
+    FILES[name] = CHROME_DIR / name
+
 # Pre-flight check: every declared file must exist.
 missing = [arcname for arcname, src in FILES.items() if not src.exists()]
 if missing:
