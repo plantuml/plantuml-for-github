@@ -4,6 +4,25 @@ All notable changes to **PlantUML for GitHub** are documented here.
 The project is published as two browser extensions (Chrome and Firefox)
 that share the same version number from `0.2.2` onward.
 
+## 0.3.4
+
+*Chrome build only -- the Firefox build stays on 0.3.2 for now.*
+
+- **Standalone PlantUML files are now rendered**, fixing
+  [#15](https://github.com/plantuml/plantuml-for-github/issues/15).
+  Opening a `.puml`, `.plantuml`, `.pu` or `.wsd` file on GitHub now
+  shows the rendered diagram in place of the code, with the usual
+  header buttons (copy as bitmap, edit as draft). The `<>` button
+  switches to GitHub's own code view (line numbers, highlighting) and
+  back. The source is read from the page itself, so it also works on
+  private repositories, and navigating between files without a page
+  reload is handled. `.iuml` include fragments are left as code.
+  **Known limitation:** a file with several `@startuml`/`@enduml` pairs
+  only renders the first diagram.
+- **Quieter console.** The detailed `[PUML4GH]` debug traces are now
+  off by default (a `DEBUG` flag at the top of `content.js` and
+  `renderer.js` turns them back on).
+
 ## 0.3.3
 
 *Chrome build only -- the Firefox build stays on 0.3.2 for now.*

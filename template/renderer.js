@@ -10,7 +10,11 @@
 import { render } from './vendor/plantuml.js';
 
 // ====== TRACE ======
-const TRACE = (...args) => console.log('[PUML4GH][renderer]', ...args);
+// Set DEBUG to true to get detailed traces in the iframe's console.
+const DEBUG = false;
+const TRACE = DEBUG
+  ? (...args) => console.log('[PUML4GH][renderer]', ...args)
+  : () => {};
 TRACE('renderer.js module loaded, location=', location.href);
 TRACE('render import =', typeof render);
 // ===================
@@ -27,7 +31,11 @@ TRACE('render import =', typeof render);
 // =====================================================================
 
 // ====== TRACE ======
-const TRACE = (...args) => console.log('[PUML4GH][renderer]', ...args);
+// Set DEBUG to true to get detailed traces in the iframe's console.
+const DEBUG = false;
+const TRACE = DEBUG
+  ? (...args) => console.log('[PUML4GH][renderer]', ...args)
+  : () => {};
 TRACE('renderer.js loaded, location=', location.href);
 // ===================
 

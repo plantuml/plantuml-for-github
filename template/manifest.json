@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "PlantUML for GitHub",
 #if CHROME
-  "version": "0.3.3",
+  "version": "0.3.4",
 #endif
 #if FIREFOX
   "version": "0.3.2",
