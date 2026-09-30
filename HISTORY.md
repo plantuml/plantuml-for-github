@@ -4,6 +4,15 @@ All notable changes to **PlantUML for GitHub** are documented here.
 The project is published as two browser extensions (Chrome and Firefox)
 that share the same version number from `0.2.2` onward.
 
+## Unreleased
+
+- **Preamble before `@startuml` is now accepted**, fixing
+  [#17](https://github.com/plantuml/plantuml-for-github/issues/17).
+  Comments (`' ...`), licence headers or blank lines placed before
+  `@startuml` (or after `@enduml`) in a ```` ```plantuml ```` block no
+  longer prevent rendering: only the `@startXXX ... @endXXX` part is sent
+  to the engine.
+
 ## 0.3.4
 
 *Chrome build only -- the Firefox build stays on 0.3.2 for now.*

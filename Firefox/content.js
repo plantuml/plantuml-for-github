@@ -205,8 +205,13 @@
     if (sniffedSource.has(blockEl)) return sniffedSource.get(blockEl);
     // For <div class="highlight-source-plantuml"><pre>, get inner <pre> text.
     const pre = blockEl.matches('pre') ? blockEl : blockEl.querySelector('pre');
-    if (!pre) return blockEl.textContent.trim();
-    return pre.textContent.trim();
+    const raw = (pre ? pre.textContent : blockEl.textContent).trim();
+    // Preamble support (#17): comments, licence headers or blank lines may
+    // precede @startXXX (and trail @endXXX). Keep only the @startXXX ..
+    // @endXXX part; if there are no delimiters (e.g. a fragment relying
+    // on the engine's own handling), pass the text through unchanged.
+    const extracted = extractPlantUMLSource(raw);
+    return extracted !== null ? extracted : raw;
   }
 
   // ------------------------------------------------------------------
