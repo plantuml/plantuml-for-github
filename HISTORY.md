@@ -6,6 +6,13 @@ that share the same version number from `0.2.2` onward.
 
 ## Unreleased
 
+- **Every diagram of a multi-diagram block or file is rendered.** A
+  ```` ```plantuml ```` block or a standalone `.puml` file holding several
+  `@startXXX ... @endXXX` pairs used to show only the first one (and, in
+  0.3.4, a standalone file could fail with "directive not recognized").
+  Each further pair is now rendered as its own diagram right after the
+  first, with the usual header buttons.
+
 - **Preamble before `@startuml` is now accepted**, fixing
   [#17](https://github.com/plantuml/plantuml-for-github/issues/17).
   Comments (`' ...`), licence headers or blank lines placed before

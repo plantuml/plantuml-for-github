@@ -56,7 +56,9 @@
   // same way the PlantUML CLI/website already treats @startuml/@enduml
   // as markers inside an otherwise-arbitrary text file.
   //
-  // Known limitation: only the FIRST @startXXX/@endXXX pair is extracted.
+  // Only the FIRST @startXXX/@endXXX pair is extracted here; processBlock()
+  // renders any further pairs as extra diagrams (extractAllPlantUMLSources).
+  // Former limitation, kept for the sel4 fallback:
   // A block with several diagrams packed into one untagged <pre> (text
   // between two @startuml/@enduml pairs) only renders the first one; the
   // rest is silently ignored. This is an intentional scope decision, not
@@ -76,6 +78,20 @@
     const endIdx = startIdx + endMatch.index + endMatch[0].length;
     return t.slice(startIdx, endIdx).trim();
   }
+  // Every `@startXXX ... @endXXX` pair in a text, in order (see the known
+  // limitation above: a file or block may hold several diagrams).
+  function extractAllPlantUMLSources(text) {
+    const out = [];
+    let rest = text || '';
+    for (;;) {
+      const one = extractPlantUMLSource(rest);
+      if (one === null) break;
+      out.push(one);
+      rest = rest.slice(rest.indexOf(one) + one.length);
+    }
+    return out;
+  }
+
 
   // Extracted `@startXXX ... @endXXX` source for blocks discovered by the
   // content-sniffing fallback (sel4), keyed by the <pre> element itself --
@@ -522,6 +538,29 @@
     if (!source) {
       TRACE('processBlock: empty source, skipping');
       return;
+    }
+
+    // Several diagrams in one block or file (each its own @startXXX ...
+    // @endXXX pair): this block renders the first one; each further one
+    // gets its own <pre>, inserted after this block's wrapper and rendered
+    // the same way, so nothing in the file is silently dropped.
+    if (!sniffedSource.has(blockEl)) {
+      const pre = blockEl.matches('pre') ? blockEl : blockEl.querySelector('pre');
+      const parts = extractAllPlantUMLSources(pre ? pre.textContent : blockEl.textContent);
+      if (parts.length > 1) {
+        setTimeout(() => {
+          let anchor = blockEl.closest('.plantuml-for-github-wrapper') || blockEl;
+          parts.slice(1).forEach((part) => {
+            if (!anchor || !anchor.parentNode) return;
+            const extra = document.createElement('pre');
+            extra.className = EXTRA_PART_CLASS;
+            extra.textContent = part;
+            anchor.parentNode.insertBefore(extra, anchor.nextSibling);
+            processBlock(extra);
+            anchor = extra.closest('.plantuml-for-github-wrapper') || extra;
+          });
+        }, 0);
+      }
     }
 
     const requestId = `puml-${++blockCounter}-${Date.now()}`;
@@ -1146,6 +1185,9 @@
   // Marker class for the elements we create on the file view.
   const BLOB_SOURCE_CLASS = 'plantuml-for-github-blob-source';
 
+  // Marker class for the <pre> of a second, third ... diagram of one block.
+  const EXTRA_PART_CLASS = 'plantuml-for-github-extra-part';
+
   // How long to keep showing the previous diagram when the URL changed to
   // another PlantUML file but the textarea still holds the old content.
   const BLOB_STALE_GRACE_MS = 1500;
@@ -1226,6 +1268,10 @@
   function removeBlobView() {
     if (!blobView) return;
     if (blobView.wrapper.isConnected) blobView.wrapper.remove();
+    document.querySelectorAll('.' + EXTRA_PART_CLASS).forEach((el) => {
+      const w = el.closest('.plantuml-for-github-wrapper');
+      (w || el).remove();
+    });
     blobView.codeView.classList.remove(BLOB_HIDDEN_CLASS);
     blobView = null;
   }
